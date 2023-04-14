@@ -1,0 +1,23 @@
+
+
+# 1. 很多很多 attach cohension strand junction levelset simplegravity spring bend membrane
+# 对于cloth有那几种：attach 
+void ThinShellForce::addHessXToTotal(const VectorXs& x, const VectorXs& v,
+                                     const VectorXs& m, const VectorXs& psi,
+                                     const scalar& lambda, TripletXs& hessE,
+                                     int hessE_index, const scalar& dt)
+
+
+# 2. 把这些addHessX都整合起来
+void TwoDScene::accumulateddUdxdx(TripletXs& A, const scalar& dt, int base_idx,
+                                  const VectorXs& dx, const VectorXs& dv) {
+
+
+# 3. 进入linearimplicitEuler中的constructHessianPreProcess
+void LinearizedImplicitEuler::constructHessianPreProcess(TwoDScene& scene, const scalar& dt)
+
+
+有一个问题是HessianMatrix应该存那些信息的？？是不是存格点上的？
+
+(M + h^2 grad2(E))dx = hMvn = h^2 grad(E)
+
