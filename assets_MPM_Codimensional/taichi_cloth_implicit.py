@@ -1,10 +1,4 @@
 
-# TODO: 不太明白nodevol是怎么计算的
-# TODO: levelset
-# TODO: attach
-# TODO: preconditioner 先解决这个问题 误差降不下来 隐式还不如显式 甚至一点都不稳定 问题太大了 
-# TODO: 我实在用了太多field了 初始状态有没有可能不够？
-# TODO：damping
 
 
 import taichi as ti
@@ -28,7 +22,7 @@ ti.init(arch = ti.gpu, device_memory_fraction=0.7, debug=False)
 n_grid = 64 # 128 for large one, 64 for small one
 dx = 1.0 / n_grid
 inv_dx = 1.0 / dx
-n_substeps = 30
+n_substeps = 60
 dt = 1.0/24/n_substeps
 
 # compression tension shear tension bending
@@ -275,7 +269,7 @@ def substep_update_grid_v():
     gridv_guess, res_scalar = linsolver.substep_conjuagte_residual(
         100, ptclx, gridv, gridm, Hesstotal)
 
-    print(res_scalar)
+    # print(res_scalar)
 
     substep_update_collision(gridv_guess)
 
@@ -373,7 +367,7 @@ def run_ggui():
             substep_update_startstate()
 
             substep_get_gravity_force()
-            # substep_get_bending_force() # bendingforce后面再说
+            # substep_get_bending_force()
             substep_get_membrane_force()
             substep_p2g_particles()
             substep_p2g_faces()
