@@ -1,6 +1,5 @@
 
 
-
 import taichi as ti
 import taichi.math as tm
 import numpy as np
@@ -33,7 +32,7 @@ coef_normalstiff = 500.0 # stiffness k 法线方向compression 碰撞回弹度
 coef_shearstiff = 0.0 # shearstiffness gamma 法线方向shearing 形变程度
 coef_damping = 0.8 # damping cofficient
 coef_fric = 0.2 # friction cofficient
-coef_Young = 5e3 # E youngs modulus
+coef_Young = 2e4 # E youngs modulus
 coef_Poisson = 0.3 # eta Poisson ratio
 coef_Visc = 5e3 # viscous modulus
 coef_thickness = 0.04 # thickness
@@ -55,10 +54,10 @@ ptclrestxnp += [0.0, 0.2, 0.0]
 verticesnp = np.loadtxt("assets_geometry/_vertices_data_small.txt", dtype=int)
 
 # add second layer cloth
-# ptclrestxnp2 = ptclrestxnp + [0.0, 0.2, 0.0]
-# ptclrestxnp = np.append(ptclrestxnp, ptclrestxnp2, axis=0)
-# verticesnp2 = verticesnp + ptclrestxnp2.shape[0]
-# verticesnp = np.append(verticesnp, verticesnp2, axis=0)
+ptclrestxnp2 = ptclrestxnp + [0.0, 0.05, 0.0]
+ptclrestxnp = np.append(ptclrestxnp, ptclrestxnp2, axis=0)
+verticesnp2 = verticesnp + ptclrestxnp2.shape[0]
+verticesnp = np.append(verticesnp, verticesnp2, axis=0)
 
 ptclrestx = ti.Vector.field(3, ti.f32, ptclrestxnp.shape[0])
 ptclrestx.from_numpy(ptclrestxnp)
@@ -95,7 +94,7 @@ clothindices = ti.field(ti.i32, num_faces*3)
 clothcolors = ti.Vector.field(3, ti.f32, num_faces)
 
 # collision paramters
-ball_center = ti.Vector([0.5,0.6,0.5])
+ball_center = ti.Vector([0.51,0.6,0.51])
 ball_radius = 0.08
 bound = 3 # boundary
 
@@ -234,7 +233,7 @@ def substep_p2g_faces():
             dw_dx = ti.Vector([dw_dx_d[i,0] * w[j,1] * w[k,2], # facex权重求导
                                w[i,0] * dw_dx_d[j,1] * w[k,2],
                                w[i,0] * w[j,1] * dw_dx_d[k,2]])
-            # TODO: 这个force可能还是有问题 按照libwetcloth修改
+
             gridforce_normal = -facevolume * dPsi_dF2 * dw_dx.dot(dE2)
             dpos = (offset.cast(float) - fx) * dx
             
@@ -255,7 +254,7 @@ def substep_update_collision(gridv_guess:ti.template()):
 
             # ball collision
             dist = I.cast(float)*dx - ball_center
-            if  dist.norm() < ball_radius:
+            if  dist.norm() < 1.05 * ball_radius:
                 dist = dist.normalized()
                 gridvel -= dist * ti.min(0, gridvel.dot(dist))
                 # gridv[I] *= 0.95  #friction
@@ -268,8 +267,6 @@ def substep_update_collision(gridv_guess:ti.template()):
 def substep_update_grid_v():
     gridv_guess, res_scalar = linsolver.substep_conjuagte_residual(
         100, ptclx, gridv, gridm, Hesstotal)
-
-    # print(res_scalar)
 
     substep_update_collision(gridv_guess)
 
