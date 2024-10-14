@@ -4,6 +4,7 @@ import taichi as ti
 import taichi.math as tm
 import numpy as np
 import taichi_math_util_funcs as ufuncs
+import os
 
 
 import taichi_math_linear_solver
@@ -13,7 +14,8 @@ from ClothForce import taichi_make_cloth_bend
 from ClothForce import taichi_make_cloth_collision
 
 
-ti.init(arch = ti.gpu, device_memory_fraction=0.7, debug=False)
+
+ti.init(arch = ti.gpu, device_memory_fraction=0.8, debug=False)
 # ti.init(arch = ti.cpu, device_memory_fraction=0.7, debug=True)
 # ti.init(arch = ti.cpu, device_memory_fraction=0.7, debug=True, cpu_max_num_threads=1)
 
@@ -48,16 +50,36 @@ cloth_collision_param = [coef_normalstiff, coef_shearstiff, coef_fric]
 lame_mu = coef_Young/(2.0*(1.0+coef_Poisson)) # lame parameter
 lame_la = coef_Young*coef_Poisson/((1.0+coef_Poisson)*(1.0-2.0*coef_Poisson)) # lame parameter
 
-# cloth parameters 
-ptclrestxnp = np.loadtxt("assets_geometry/_ppos_data_small.txt")
-ptclrestxnp += [0.0, 0.2, 0.0]
-verticesnp = np.loadtxt("assets_geometry/_vertices_data_small.txt", dtype=int)
 
-# add second layer cloth
-ptclrestxnp2 = ptclrestxnp + [0.0, 0.05, 0.0]
-ptclrestxnp = np.append(ptclrestxnp, ptclrestxnp2, axis=0)
-verticesnp2 = verticesnp + ptclrestxnp2.shape[0]
-verticesnp = np.append(verticesnp, verticesnp2, axis=0)
+
+def load_obj(filename):
+    vertices = []
+    faces = []
+    with open(filename, 'r') as f:
+        for line in f:
+            if line.startswith('v '):
+                parts = line.strip().split()
+                # 仅提取前三个坐标（x, y, z）
+                vertex = [float(p) for p in parts[1:4]]
+                vertices.append(vertex)
+            elif line.startswith('f '):
+                parts = line.strip().split()
+                face = []
+                for part in parts[1:4]:
+                    # 处理如 'f 1/1/1 2/2/2 3/3/3' 的情况，只取顶点索引
+                    idx = part.split('/')[0]
+                    face.append(int(idx) - 1)  # OBJ索引从1开始，转为0基
+                faces.append(face)
+                
+    return np.array(vertices, dtype=np.float32), np.array(faces, dtype=np.int32)
+
+
+
+
+# 加载OBJ文件并处理
+obj_filename = "assets_geometry/64x64cloth.obj"  # 替换为你的OBJ文件路径
+ptclrestxnp, verticesnp = load_obj(obj_filename)
+
 
 ptclrestx = ti.Vector.field(3, ti.f32, ptclrestxnp.shape[0])
 ptclrestx.from_numpy(ptclrestxnp)
@@ -292,6 +314,7 @@ def substep_g2p_particles():
         # ptclC[p] = C_skew + (1.0-coef_damping)*C_sym
         ptclC[p] = new_C
 
+
 @ti.kernel
 def substep_g2p_faces():
     for f in facex:
@@ -316,6 +339,21 @@ def substep_return_mapping():
         cloth_collision.get_cloth_return_mapping(f, ptclx, dt, faceC)
 
 
+def save_mesh_as_obj(frame_idx):
+    output_dir = "output_mesh"
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    filename = os.path.join(output_dir, f"frame_{frame_idx:04d}.obj")
+    with open(filename, 'w') as f:
+        # Write vertices
+        for i in range(num_particles):
+            f.write(f"v {ptclx[i][0]} {ptclx[i][1]} {ptclx[i][2]}\n")
+        # Write faces
+        for i in range(num_faces):
+            a, b, c = vertices[i]
+            f.write(f"f {a + 1} {b + 1} {c + 1}\n")
+    print(f"Saved frame {frame_idx} to {filename}")
 
 def run_ggui():
     res = (800, 800)
@@ -343,9 +381,8 @@ def run_ggui():
 
     initialize_mesh_points()
 
+    frame_idx = 0
     while window.running:
-
-
 
         camera.track_user_inputs(window, movement_speed=0.03, hold_key=ti.ui.RMB)
         scene.set_camera(camera)
@@ -377,6 +414,11 @@ def run_ggui():
         
         canvas.scene(scene)
         window.show()
+        
+        # Save current frame as OBJ
+        save_mesh_as_obj(frame_idx)
+        frame_idx += 1
+
 
 if __name__ == '__main__':
     
