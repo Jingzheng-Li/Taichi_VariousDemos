@@ -15,12 +15,12 @@ from ClothForce import taichi_make_cloth_collision
 
 
 
-ti.init(arch = ti.gpu, device_memory_fraction=0.8, debug=False)
+ti.init(arch = ti.gpu, device_memory_fraction=0.9, debug=False)
 # ti.init(arch = ti.cpu, device_memory_fraction=0.7, debug=True)
 # ti.init(arch = ti.cpu, device_memory_fraction=0.7, debug=True, cpu_max_num_threads=1)
 
 # simulate paramters
-n_grid = 64 # 128 for large one, 64 for small one
+n_grid = 80 # 128 for large one, 64 for small one
 dx = 1.0 / n_grid
 inv_dx = 1.0 / dx
 n_substeps = 60
@@ -77,7 +77,7 @@ def load_obj(filename):
 
 
 # 加载OBJ文件并处理
-obj_filename = "assets_geometry/64x64cloth.obj"  # 替换为你的OBJ文件路径
+obj_filename = "assets_geometry/64x64cloth_triple.obj"  # 替换为你的OBJ文件路径
 ptclrestxnp, verticesnp = load_obj(obj_filename)
 
 
@@ -116,7 +116,7 @@ clothindices = ti.field(ti.i32, num_faces*3)
 clothcolors = ti.Vector.field(3, ti.f32, num_faces)
 
 # collision paramters
-ball_center = ti.Vector([0.51,0.6,0.51])
+ball_center = ti.Vector([0.505,0.6,0.505])
 ball_radius = 0.08
 bound = 3 # boundary
 
@@ -128,8 +128,8 @@ universal_graivity = taichi_make_universal_gravity.MAKE_UNIVERSAL_GRAVITY(
 cloth_membrane = taichi_make_cloth_membrane.MAKE_CLOTH_MEMBRANE(
     vertices, ptclrestx, ptclrestvol, facerestvol, cloth_membrane_param)
 
-cloth_bend = taichi_make_cloth_bend.MAKE_CLOTH_BEND(
-    vertices, ptclrestx, ptclrestvol, facerestvol, cloth_bend_param)
+# cloth_bend = taichi_make_cloth_bend.MAKE_CLOTH_BEND(
+#     vertices, ptclrestx, ptclrestvol, facerestvol, cloth_bend_param)
 
 cloth_collision = taichi_make_cloth_collision.MAKE_CLOTH_COLLISION(
     vertices, ptclrestx, ptclrestvol, facerestvol, cloth_collision_param)
@@ -178,8 +178,8 @@ def initialize_mesh_points():
     cloth_membrane.initialize_cloth_membrane()
 
     # thin shell bending force
-    cloth_bend.initialize_cloth_bend()
-    cloth_bend.get_edgeshared_phi(ptclrestx, cloth_bend.edgeshared_restphi)
+    # cloth_bend.initialize_cloth_bend()
+    # cloth_bend.get_edgeshared_phi(ptclrestx, cloth_bend.edgeshared_restphi)
 
 
 
@@ -207,14 +207,14 @@ def substep_get_membrane_force():
         cloth_membrane.get_cloth_membrane_Hessian(f, (a,b,c), (xa,xb,xc), Hesstotal)
 
 
-@ti.kernel
-def substep_get_bending_force():
-    for e in cloth_bend.edgeshared:
-        es = cloth_bend.edgeshared[e]
-        idxvec = cloth_bend.edgeshared_ptclid[es]
-        idx0, idx1, idx2, idx3 = idxvec[0], idxvec[1], idxvec[2], idxvec[3] # 四个顶点的索引
-        x0, x1, x2, x3 = ptclx[idx0], ptclx[idx1], ptclx[idx2], ptclx[idx3] # 四个顶点的坐标
-        cloth_bend.get_cloth_bend_force(es, (idx0, idx1, idx2, idx3), (x0, x1, x2, x3), forcetotal)
+# @ti.kernel
+# def substep_get_bending_force():
+#     for e in cloth_bend.edgeshared:
+#         es = cloth_bend.edgeshared[e]
+#         idxvec = cloth_bend.edgeshared_ptclid[es]
+#         idx0, idx1, idx2, idx3 = idxvec[0], idxvec[1], idxvec[2], idxvec[3] # 四个顶点的索引
+#         x0, x1, x2, x3 = ptclx[idx0], ptclx[idx1], ptclx[idx2], ptclx[idx3] # 四个顶点的坐标
+#         cloth_bend.get_cloth_bend_force(es, (idx0, idx1, idx2, idx3), (x0, x1, x2, x3), forcetotal)
 
 
 @ti.kernel
@@ -377,7 +377,7 @@ def run_ggui():
     collision_ball[0] = ball_center
 
     # initialize simulation here
-    cloth_bend.get_cloth_bend_geometry()
+    # cloth_bend.get_cloth_bend_geometry()
 
     initialize_mesh_points()
 
@@ -418,6 +418,9 @@ def run_ggui():
         # Save current frame as OBJ
         save_mesh_as_obj(frame_idx)
         frame_idx += 1
+        
+        if (frame_idx > 120): 
+            break
 
 
 if __name__ == '__main__':
